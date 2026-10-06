@@ -1,0 +1,17 @@
+[workspace]
+authors = ["Paulian Oprescu <paulian.oprescu@wur.nl>"]
+channels = ["conda-forge"]
+name = "project-starter-furry_heavenly_elk"
+platforms = ["linux-64"]
+version = "0.1.0"
+
+[tasks]
+
+[dependencies]
+python = "3.12.*"
+jupyter = ">=1.1.1,<2"
+earthengine-api = ">=1.7.47,<2"
+geemap = ">=0.38.9,<0.39"
+pygadm = ">=0.5.3,<0.6"
+geopandas = ">=1.2.0,<2"
+geojson = ">=3.3.0,<4"
