@@ -1,4 +1,3 @@
-import geemap
 import ee
 
 def detect_ships(image, aoi, min_pixels=8):
@@ -11,7 +10,7 @@ def detect_ships(image, aoi, min_pixels=8):
     vh = vh[:,:,0] # drop band dimension : 2D array
 
     # Defining dB scatter threshold
-    threshold = - 10
+    threshold = - 15
     vh = image.select('VH').clip(aoi)
     # 1 where VH > threshold, masked (transparent) everywhere else
     bright = vh.gt(threshold).selfMask()
@@ -35,3 +34,25 @@ def detect_ships(image, aoi, min_pixels=8):
     #print(vector.size().getInfo())
 
     # Count Vessel Polygons detected 
+
+import geemap
+import geopandas as gpd 
+from shapely.geometry import box
+
+
+def load_water(shp_path, bbox, inward_buffer_m=10):
+    """Clip the OSM water polygons to the study area and convert them for Earth Engine.
+
+    input : path to the OSM water shapefile, bbox [xmin, ymin, xmax, ymax] in lon/lat,
+            inward buffer in metres that keeps the bright quay edge out of the mask
+    output: ee.Geometry of the water inside the bbox
+    """
+    # clip locally first, so only a small polygon is sent to Earth Engine
+    water = gpd.read_file(shp_path).to_crs(4326).clip(box(*bbox))
+
+    # buffer in metres (UTM), then merge everything into one polygon
+    water = water.to_crs(water.estimate_utm_crs())
+    water['geometry'] = water.buffer(-inward_buffer_m)
+    water = water[~water.is_empty].dissolve().to_crs(4326)
+
+    return geemap.geopandas_to_ee(water).geometry()
