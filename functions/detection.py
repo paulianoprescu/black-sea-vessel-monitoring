@@ -1,4 +1,34 @@
 import ee
+import geemap
+import geopandas as gpd 
+from shapely.geometry import box
+
+
+def load_water(shp_path, bbox, buffer=10):
+    """Load the OSM water polygons for the study area as an Earth Engine geometry.
+
+    The polygons are clipped to the bbox and shrunk inward, so the bright edges of the docks are not mistaken for ships.
+    Args:
+        shp_path: Path to the OSM water shapefile
+        bbox: Study area as bbox [xmin, ymin, xmax, ymax] in lon/lat
+        inward_buffer_m: How many meters to shrink the water polygon inwards
+
+    Returns:
+        An ee.Geometry of the water inside the bbox
+    """
+
+    # Clip water polygon to our area of interest, so only a small polygon is sent to Earth Engine
+    water = gpd.read_file(shp_path).to_crs(4326).clip(box(*bbox))
+
+    # Buffer in metres (UTM), then merge everything into one polygon
+    water = water.to_crs(water.estimate_utm_crs())
+    water['geometry'] = water.buffer(-buffer)
+    water = water[~water.is_empty].dissolve().to_crs(4326)
+
+    return geemap.geopandas_to_ee(water).geometry()
+
+
+
 
 def detect_ships(image, aoi, min_pixels=8):
     """Function for counting the ships detected in 1 image
@@ -35,27 +65,7 @@ def detect_ships(image, aoi, min_pixels=8):
 
     # Count Vessel Polygons detected 
 
-import geemap
-import geopandas as gpd 
-from shapely.geometry import box
 
-
-def load_water(shp_path, bbox, inward_buffer_m=10):
-    """Clip the OSM water polygons to the study area and convert them for Earth Engine.
-
-    input : path to the OSM water shapefile, bbox [xmin, ymin, xmax, ymax] in lon/lat,
-            inward buffer in metres that keeps the bright quay edge out of the mask
-    output: ee.Geometry of the water inside the bbox
-    """
-    # clip locally first, so only a small polygon is sent to Earth Engine
-    water = gpd.read_file(shp_path).to_crs(4326).clip(box(*bbox))
-
-    # buffer in metres (UTM), then merge everything into one polygon
-    water = water.to_crs(water.estimate_utm_crs())
-    water['geometry'] = water.buffer(-inward_buffer_m)
-    water = water[~water.is_empty].dissolve().to_crs(4326)
-
-    return geemap.geopandas_to_ee(water).geometry()
 
 
 import pandas as pd
