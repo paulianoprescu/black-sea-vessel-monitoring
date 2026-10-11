@@ -3,6 +3,7 @@ import ee
 import geemap
 import geopandas as gpd 
 from shapely.geometry import box
+import pandas as pd
 
 
 def load_water(shp_path, bbox, buffer=10):
@@ -137,52 +138,51 @@ def detect_ships(image, water, method='cfar', guard=10, outer=15, threshold=-15,
     return vectors
 
 
+def count_ships(image, water, method='cfar', threshold=-15, k=4, min_pixels=8):
+    """Count the ships in one Sentinel-1 image
 
+    Args:
+        image: A Sentinel-1 ee.Image with a VH band
+        water: ee.Geometry of the water mask
+        method: 'cfar', local threshold or 'threshold', fixed value.
+        threshold: Fixed theshold, used when method='threshold'
+        k: Standard deviations above the background, used when method='cfar'
+        min_pixels: Smallest group of bright pixels that count as a ship
 
-import pandas as pd
-
-def s1_detect_ships(image, aoi, min_pixels=8, threshold=-15, vectors=False):
-    """Detect ships in one Sentinel-1 image.
-    input : Sentinel-1 image, area of interest (water geometry)
-    output: ee.Feature with date, orbit and ship count (default),
-            or ee.FeatureCollection with one polygon per vessel (vectors=True)
+    Returns: 
+        An ee.Feature with the date and the number of ships
     """
-    # 1 where VH > threshold, masked (transparent) everywhere else
-    vh = image.select('VH').clip(aoi)
-    bright = vh.gt(threshold).selfMask()
+    # https://developers.google.com/earth-engine/apidocs/ee-feature
+    # https://claude.ai/share/edd311b1-6345-4eb1-a723-808e7efc20b0
+    ships = detect_ships(image, water, method=method, threshold=threshold, k=k, min_pixels=min_pixels)
 
-    # each bright pixel gets the size of its 8-connected cluster
-    cluster_size = bright.connectedPixelCount(maxSize=100, eightConnected=True)
-
-    # keep only clusters of at least min_pixels
-    ships = bright.updateMask(cluster_size.gte(min_pixels))
-
-    # polygon vector per remaining cluster
-    ship_polygons = ships.reduceToVectors(
-        geometry=aoi,
-        scale=10,
-        geometryType='polygon',
-        eightConnected=True,
-        tileScale=4,
-    )
-
-    if vectors:
-        return ship_polygons
-
-    # count vessel polygons detected
-    return ee.Feature(None, {
-        'date': image.date().format('YYYY-MM-dd HH:mm'),
-        'orbit': image.get('relativeOrbitNumber_start'),
-        'n_ships': ship_polygons.size(),
+    row = ee.Feature(None, {
+        'date': image.date().format('YYY-MM-dd HH:mm'),
+        'n_ships': ships.Size()
     })
 
+    return row
 
-def ship_counts(collection, aoi, **kwargs):
-    """Run detect_ships on every image of a collection.
-    output: pandas DataFrame indexed by acquisition date
+def ship_counts(collection, water, **kwargs):
+    """Count the ships in every image of a Sentinel-1 collection
+    
+    Args: 
+        collection: ee.ImageCollection of Sentinel-1 images
+        water: ee.Geometry of the water mask.
+    
+    Returns:
+        A pandas DataFrame with the number of ships per date
     """
-    fc = ee.FeatureCollection(collection.map(lambda img: s1_detect_ships(img, aoi, **kwargs)))
+    # https://developers.google.com/earth-engine/guides/ic_mapping
+    # https://claude.ai/share/02ac0efd-b5ef-4fd8-a20e-c1614b7cccd4
+    # Count the ships in every image
+    fc = ee.FeatureCollection(collection.map(lambda img: count_ships(img, water, **kwargs)))
+
     info = fc.getInfo()
-    df = pd.DataFrame([f['properties'] for f in info['features']])
+    rows = []
+    for feature in info['features']:
+        rows.append(feature['properties'])
+    df = pd.DataFrame(rows)
     df['date'] = pd.to_datetime(df['date'])
+
     return df.set_index('date').sort_index()
