@@ -4,7 +4,6 @@ import geopandas as gpd
 from shapely.geometry import box
 import pandas as pd
 
-
 def load_water(shp_path, bbox, buffer=10):
     """Load the OSM water polygons for the study area as an Earth Engine geometry.
 
@@ -55,12 +54,12 @@ def load_s1(aoi, start_date, end_date, orbit):
     )
     return collection
             
-def cfar(image, guard=20, outer=25, k=4):
+def cfar(image, guard=10, outer=15, k=4):
     """Applies a Constant False Alarm Rate Detection of bright targets in a Sentinel-1 VH image
 
     Args:
         image: A GEE image
-        guard: The maximum radius from the cell that get ignored for calculating the threshold in pixels (10m for Sentinel-1)
+        guard: The maximum radius from the cell that are ignored for calculating the threshold in pixels (10m for Sentinel-1)
         outer: The maximum radius of cells that are used to calculate the threshold in pixels (10m for Sentinel-1)
         k: how many standard deviations above the background mean a pixel must be to count as a ship
 
@@ -98,15 +97,15 @@ def cfar(image, guard=20, outer=25, k=4):
     return ships
 
 def sea_threshold(image, water, k):
-    """Calculates the threshold from the median VH of the water + k times the std
+    """Calculates the threshold from the median VH of the water + k times the std (estimate at p84)
     
-        Args:
-            image: A Sentinel-1 ee.Image with a VH band
-            water: ee.Geometry of the water mask
-            k: Standard deviations above the median
+    Args:
+        image: A Sentinel-1 ee.Image with a VH band
+        water: ee.Geometry of the water mask
+        k: Standard deviations above the median
 
-        Returns:
-            Threshold to use for detecting cells as ships.
+    Returns:
+        Threshold to use for detecting cells as ships.
     """
     # https://developers.google.com/earth-engine/apidocs/ee-reducer-percentile
     # https://claude.ai/share/45094391-4f12-42a3-a4d1-f95b4d5ccd00
@@ -126,17 +125,17 @@ def sea_threshold(image, water, k):
     threshold = median.add(one_std.multiply(k))
     return threshold
 
-def detect_ships(image, water, method='cfar', guard=10, outer=15, threshold=-15, k=4, min_pixels=8):
+def detect_ships(image, water, method='threshold', guard=10, outer=15, threshold=-15, k=4, min_pixels=8):
     """Detect ships in one Sentinel-1 image
 
     Args:
         image: A Sentinel-1 ee.Image with a VH band
         water: ee.Geometry of the water mask
-        method: 'cfar', local threshold or 'threshold', fixed value.
-        guard: maximum radius of ignored pixels
-        outer: maximum radius of pixels used to calculate threshold
-        threshold: Fixed theshold, used when method='threshold'
-        k: Standard deviations above the background, used when method='cfar'
+        method: 'cfar', local threshold; 'threshold', fixed value; 'adaptive' uses k std
+        guard: maximum radius of ignored pixels, used when method='cfar'
+        outer: maximum radius of pixels used to calculate threshold, used when method='cfar'
+        threshold: used when method='threshold'
+        k: Standard deviations above the background, used when method='cfar' or method='adaptive'
         min_pixels: Smallest group of bright pixels that count as a ship
 
     Returns:
@@ -148,11 +147,16 @@ def detect_ships(image, water, method='cfar', guard=10, outer=15, threshold=-15,
     # Keep only the VH band of S1 image and only over the water mask
     vh = image.select('VH').clip(water)
     
-    # Find bright pixels using cfar or static threshold
+    # Find bright pixels using cfar, adaptive or static threshold
     if method == 'cfar':
         bright = cfar(vh, guard=guard, outer=outer, k=k)
-    else:
+    elif method == 'threshold':
         bright = vh.gt(threshold).selfMask()
+    elif method == 'adaptive':
+        adaptive_threshold = sea_threshold(image, water, k)
+        bright = vh.gt(adaptive_threshold).selfMask()
+        
+
 
     # Remove groups smaller than min_pixels
     cluster_size = bright.connectedPixelCount(maxSize=100, eightConnected=True)
@@ -169,7 +173,7 @@ def detect_ships(image, water, method='cfar', guard=10, outer=15, threshold=-15,
     return vectors
 
 
-def count_ships(image, water, method='cfar', guard=10, outer=15, threshold=-15, k=4, min_pixels=8):
+def count_ships(image, water, **kwargs):
     """Count the ships in one Sentinel-1 image
 
     Args:
@@ -185,18 +189,13 @@ def count_ships(image, water, method='cfar', guard=10, outer=15, threshold=-15, 
     Returns: 
         An ee.Feature with the date and the number of ships
     """
-
-    adaptive_threshold = sea_threshold(image, water, k)
     # https://developers.google.com/earth-engine/apidocs/ee-feature
     # https://claude.ai/share/edd311b1-6345-4eb1-a723-808e7efc20b0
-    ships_fixed = detect_ships(image, water, method='threshold', guard=guard, outer=outer, threshold=threshold, k=k, min_pixels=min_pixels)
-    ships_adaptive = detect_ships(image, water, method='threshold', guard=guard, outer=outer, threshold=adaptive_threshold, k=k, min_pixels=min_pixels)
+    ships = detect_ships(image, water, **kwargs)
 
     row = ee.Feature(None, {
         'date': image.date().format('YYYY-MM-dd HH:mm'),
-        'n_fixed': ships_fixed.size(),
-        'n_adaptive': ships_adaptive.size(),
-        'threshold_adaptive': adaptive_threshold
+        'n_ships': ships.size(),
     })
 
     return row
