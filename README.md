@@ -40,3 +40,6 @@ output/                  # timelapse GIF (created when running)
 
 ## License
 MIT, see `LICENSE`.
+
+## Use of AI
+We used Claude (Anthropic) to improve the wording and grammar of the markdown text. Where AI was used for help with the code, a link to the chat log is included in the code comments of the relevant function.
