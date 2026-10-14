@@ -9,7 +9,7 @@ We count vessels in the port and offshore anchorage of Constanța (Romania) on S
 ![Detected ships at Constanța around Russia leaving the grain deal (July 2023)](images/timelapse_2023.gif)
 
 ## Research questions
-1. Can we build a simple vessel detection algorithm based on a backscatter (dB) threshold that separates ships from the dark sea water?
+1. How can vessels be detected in the Constanta port area given boxed Sentinel-1 imagery using backscatter thresholding?
 2. Does our detection algorithm capture the trend in vessel traffic at Constanța, as recorded by IMF PortWatch, during the conflict in the Black Sea region?
 
 ## How to run
