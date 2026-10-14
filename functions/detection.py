@@ -179,8 +179,6 @@ class Port:
             adaptive_threshold = self.sea_threshold(image, water, k) 
             bright = vh.gt(adaptive_threshold).selfMask()
             
-
-
         # Remove groups smaller than min_pixels
         cluster_size = bright.connectedPixelCount(maxSize=100, eightConnected=True)
         ships = bright.updateMask(cluster_size.gte(min_pixels))
@@ -194,7 +192,6 @@ class Port:
             tileScale=4,
         )
         return vectors
-
 
     def count_ships(self, image, water, **kwargs):  
         """Count the ships in one Sentinel-1 image
