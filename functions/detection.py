@@ -281,7 +281,7 @@ class Port:
             url = frame.getThumbURL({'region': ee.Geometry.Rectangle(self.bbox), 'dimensions': 600, 'format': 'png'})  
             png = Image.open(requests.get(url, stream=True).raw).convert('RGB')
 
-            # Write the date (from the scene ID, e.g. 20230601) as 2023-06-01, plus pre- or post-event
+            # Write the date (from the scene ID, e.g. 20230601) as 2023-06-01, plus pre- or post-event label on image
             d = scene_id.split('_')[4]
             date = f'{d[:4]}-{d[4:6]}-{d[6:8]}'
             label = 'pre-event' if date < event_date else 'post-event'
