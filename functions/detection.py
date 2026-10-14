@@ -63,7 +63,7 @@ class Port:
         # https://tutorials.geemap.org/ImageCollection/image_collection_overview/
         # https://developers.google.com/earth-engine/apidocs/ee-filter-contains
         # https://claude.ai/share/e6ed9cd1-0001-40a2-b15a-c4957eef1492
-        aoi = ee.Geometry.Rectangle(self.bbox)  # CHANGED
+        aoi = ee.Geometry.Rectangle(self.bbox)  
 
         collection = (ee.ImageCollection('COPERNICUS/S1_GRD')
             .filterDate(start_date, end_date)
