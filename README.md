@@ -6,7 +6,7 @@
 
 We count vessels in the port and offshore anchorage of Constanța (Romania) on Sentinel-1 radar images from 2019 to 2025, using Google Earth Engine. Ships have a much higher radar backscatter than calm sea water, so a simple dB threshold separates them. We compare the counts with IMF PortWatch port calls to see whether our detection captures the change in vessel traffic during the war in the Black Sea region.
 
-![Detected ships at Constanța around Russia leaving the grain deal (July 2023)](output/timelapse_2023.gif)
+![Detected ships at Constanța around Russia leaving the grain deal (July 2023)](image/timelapse_2023.gif)
 
 ## Research questions
 1. Can we build a simple vessel detection algorithm based on a backscatter (dB) threshold that separates ships from the dark sea water?
