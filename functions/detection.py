@@ -3,6 +3,8 @@ import geemap
 import geopandas as gpd 
 from shapely.geometry import box
 import pandas as pd
+import requests
+from PIL import Image, ImageDraw
 
 def load_water(shp_path, bbox, buffer=10):
     """Load the OSM water polygons for the study area as an Earth Engine geometry.
@@ -224,3 +226,49 @@ def ship_counts(collection, water, **kwargs):
     df['date'] = pd.to_datetime(df['date'])
 
     return df.set_index('date').sort_index()
+
+def make_timelapse(scenes, water, aoi, out_gif, event_date, **kwargs):
+    """Save a GIF of Sentinel-1 scenes with the detected ships in red
+
+    The frames are made one at a time, because asking Earth Engine for all
+    frames at once gives a 'Too many concurrent aggregations' error.
+
+    Args:
+        scenes: ee.ImageCollection of Sentinel-1 images
+        water: ee.Geometry of the water mask
+        aoi: ee.Geometry of the area shown in the GIF
+        out_gif: Path of the output GIF
+        event_date: Date of the event as 'YYYY-MM-DD'; frames are labelled pre- or post-event
+        **kwargs: Detection settings passed on to detect_ships (eg.: method='threshold', threshold= -15, min_pixels= 8)
+    
+    Returns:
+        The GIF is saved to `out_gif`
+    """
+    # https://developers.google.com/earth-engine/guides/feature_collections_visualizing
+    # https://developers.google.com/earth-engine/apidocs/ee-image-getthumburl
+    # https://pillow.readthedocs.io/en/stable/handbook/image-file-formats.html#gif-saving
+    frames = []
+
+    # Loop over the scene IDs, so only one request is needed to list all scenes
+    for scene_id in scenes.aggregate_array('system:index').getInfo():
+        img = ee.Image('COPERNICUS/S1_GRD/' + scene_id)
+
+        # Detect the ships and draw the polygons in red 
+        ships = detect_ships(img, water, **kwargs).draw(color='D55E00')
+
+        # Radar image in grey with the red ships on top
+        frame = img.select('VH').visualize(min=-25, max=-5).blend(ships)
+
+        # Let Earth Engine render the frame as a PNG and download it
+        url = frame.getThumbURL({'region': aoi, 'dimensions': 600, 'format': 'png'})
+        png = Image.open(requests.get(url, stream=True).raw).convert('RGB')
+
+        # Write the date (from the scene ID, e.g. 20230601) as 2023-06-01, plus pre- or post-event
+        d = scene_id.split('_')[4]
+        date = f'{d[:4]}-{d[4:6]}-{d[6:8]}'
+        label = 'pre-event' if date < event_date else 'post-event'
+        ImageDraw.Draw(png).text((10, 10), f'{date}   {label}', fill='white', font_size=22)
+        frames.append(png)
+
+    # Combine all frames into one GIF: 400 ms per frame, looping forever
+    frames[0].save(out_gif, save_all=True, append_images=frames[1:], duration=400, loop=0)
