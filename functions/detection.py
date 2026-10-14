@@ -3,6 +3,8 @@ import geemap
 import geopandas as gpd 
 from shapely.geometry import box
 import pandas as pd
+import requests
+from PIL import Image, ImageDraw
 
 def load_water(shp_path, bbox, buffer=10):
     """Load the OSM water polygons for the study area as an Earth Engine geometry.
@@ -225,12 +227,6 @@ def ship_counts(collection, water, **kwargs):
 
     return df.set_index('date').sort_index()
 
-import ee
-import requests
-from PIL import Image, ImageDraw
-from functions.detection import detect_ships
-
-
 def make_timelapse(scenes, water, aoi, out_gif, event_date, **kwargs):
     """Save a GIF of Sentinel-1 scenes with the detected ships in red
 
@@ -242,8 +238,11 @@ def make_timelapse(scenes, water, aoi, out_gif, event_date, **kwargs):
         water: ee.Geometry of the water mask
         aoi: ee.Geometry of the area shown in the GIF
         out_gif: Path of the output GIF
-                event_date: Date of the event as 'YYYY-MM-DD'; frames are labelled pre- or post-event
-        **kwargs: Detection settings passed on to detect_ships
+        event_date: Date of the event as 'YYYY-MM-DD'; frames are labelled pre- or post-event
+        **kwargs: Detection settings passed on to detect_ships (eg.: method='threshold', threshold= -15, min_pixels= 8)
+    
+    Returns:
+        The GIF is saved to `out_gif`
     """
     # https://developers.google.com/earth-engine/guides/feature_collections_visualizing
     # https://developers.google.com/earth-engine/apidocs/ee-image-getthumburl
