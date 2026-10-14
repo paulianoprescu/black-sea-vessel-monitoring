@@ -7,6 +7,18 @@ import requests
 from PIL import Image, ImageDraw
 
 class Port:
+    """A port to monitor with Sentinel-1.
+
+    Holds everything that is specific to one port, so the same methods
+    can be used for any port by making a new instance.
+
+    Args:
+        name: Name of the port, e.g. 'Constanta'
+        bbox: Study area as [west, south, east, north] in degrees (WGS84)
+        split_lon: Longitude that splits the bbox: port to the west, anchorage to the east
+        orbit: Sentinel-1 relative orbit that covers the port most often
+        water_shp: Path to the OSM water polygons for this port
+    """
     def __init__(self, name, bbox, split_lon, orbit, water_shp):
         self.name = name
         self.bbox = bbox            # [west, south, east, north]
