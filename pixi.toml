@@ -1,5 +1,5 @@
 [workspace]
-authors = ["Paulian Oprescu <paulian.oprescu@wur.nl>"]
+authors = ["Luca Tarchila <luca.tarchila@wur.nl>, Paulian Oprescu <paulian.oprescu@wur.nl>, Phuong Nguyen <phuong1.nguyen@wur.nl>, Ravian Hendriks <ravian.hendriks@wur.nl>"]
 channels = ["conda-forge"]
 name = "project-starter-furry_heavenly_elk"
 platforms = ["linux-64"]
