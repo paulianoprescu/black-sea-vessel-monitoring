@@ -23,8 +23,6 @@ def load_portwatch(port_id, csv_path):
         https://docs.python-requests.org/en/latest/user/quickstart/#json-response-content
 
     """
-    # Fetch IMF Portwatch Constanta Port Calls 
-    # To be used to validate trend 
     # Since there is a lot of systematic positive bias from the port area ship detection 
     # we are looking to validate the trend rather than absolute values
     if os.path.exists(csv_path):
@@ -85,8 +83,6 @@ def monthly_means(ships, portwatch, start_date, end_date):
     """
 
     # Convert dates and use the same end date for both datasets
-    portwatch['date'] = pd.to_datetime(portwatch['date'])
-    ships['date'] = pd.to_datetime(ships['date'])
     portwatch = portwatch.loc[(portwatch['date'] >= start_date) & (portwatch['date'] < end_date)]
 
     # Resample and split different detections onto port, anchorage and total area
